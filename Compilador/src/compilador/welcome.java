@@ -1,6 +1,9 @@
 package compilador;
 
+import com.sun.javafx.font.FontConstants;
 import java.awt.Color;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,7 +18,12 @@ hilo ejecutar = new hilo();
     /**
      * Creates new form welcome
      */
+     
+     ArrayList dbs = new ArrayList();// ARREGLO QUE CONTENDRA LAS BASE DE DATOS EN EL SERVIDOR MYSQL
+             
+
     public welcome() {
+        
         initComponents();
         welcome.this.getRootPane().setOpaque(true);        
         welcome.this.getContentPane ().setBackground (Color.BLACK);
@@ -166,7 +174,42 @@ hilo ejecutar = new hilo();
             }
         });
     }
-
+    
+    
+    public void lista(){
+        coneccion c = new coneccion();//REALIZA LA CONECCION
+        Connection acceso = c.getC("");//CON EL GETC ES PARA CONSULTA EN SQL
+    try {
+        CallableStatement ps= acceso.prepareCall("EXEC sp_helpdb");// CONSULTA QUE BASES DE DATOS EXISTE
+        ResultSet rs = ps.executeQuery();//EJECUTA LA CONSULTA
+        while(rs.next()){
+            dbs.add(rs.getString(1));//AGREGA AL ARRAY LIST LAS BASE DE DATOS ENCONTRADOS
+        }
+        c.desconectar();// CIERRA LA CONECCION A MYSQL
+    } catch (SQLException ex) {
+        Logger.getLogger(welcome.class.getName()).log(Level.SEVERE, null, ex);
+    }
+                
+    }
+    
+    public void listaBD(){
+        coneccion c = new coneccion();//REALIZA LA CONECCION
+        Connection acceso = c.getConexion("");
+    try {
+        PreparedStatement ps = acceso.prepareStatement("SHOW DATABASES;");// CONSULTA QUE BASES DE DATOS EXISTE
+        ResultSet rs = ps.executeQuery();//EJECUTA LA CONSULTA
+        while(rs.next()){
+            dbs.add(rs.getString(1));//AGREGA AL ARRAY LIST LAS BASE DE DATOS ENCONTRADOS
+        }
+        c.desconectar();// CIERRA LA CONECCION A MYSQL
+    } catch (SQLException ex) {
+        Logger.getLogger(welcome.class.getName()).log(Level.SEVERE, null, ex);
+    }
+                
+    }
+    
+    
+    
     private class hilo extends Thread{
     @Override
     public void run(){
@@ -185,8 +228,13 @@ hilo ejecutar = new hilo();
                     text.setText("Carga finalizada");
                     break;
                 case 60:
-                    CompiladorView objeto = new CompiladorView();
-                    objeto.setVisible(true);
+                    ServidorView objeto = new ServidorView();
+                    lista();//LLAMA AL METODO QUE CONSULTA LA CANTIDAD DE BASE DE DATOS QUE HAY
+                    objeto.cmbListadb.removeAllItems();//LIMPIAMOS EL COMBO BOX
+                    for (int i = 0; i < dbs.size(); i++) {
+                        objeto.cmbListadb.addItem(dbs.get(i).toString());// AGREGAMOS CADA BASE DE DATOS ENCONTRADA AL COMBO BOX
+                    }
+                    objeto.setVisible(true);// MUESTRA LA VENTANA SERVIDOR
                     objeto.setLocationRelativeTo(welcome.this);
                     welcome.this.dispose();
                     break;                    

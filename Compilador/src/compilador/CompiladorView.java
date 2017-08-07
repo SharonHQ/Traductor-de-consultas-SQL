@@ -9,7 +9,15 @@ package compilador;
 
 
 import java.awt.Color;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -21,25 +29,37 @@ public class CompiladorView extends javax.swing.JFrame {
     /**
      * Creates new form CompiladorView
      */
+    //VARIABLES PUBLICAS QUE SE RELLENAN EN LAS VENTANAS ANTERIORES
+    public String BD;
+    public ArrayList tValidas;
+    public int cantColumas;
+    
+    //VARIABLES PARA LA CONSULTA A LA BASE DE DATOS
+    String consulta;
+    String nomTabla="";
+    String Campos="";
+    String Condicion="";
+    int tipoConsulta=1;
+    
+    //VARIABLES DE LAS OPERACIONES
     TokensView tv = new TokensView();//PARA ACCEDER A A LA TABLA DE TOKENSVIEW
     Object [] fila=new Object[2];//PODER AGREGAR FILAS A LA TABLA
     String cadAux;//AQUI ESTA LA EXPRESION COMPLETA CON EL PUNTO 
-    String tablasValidas[] = {"alumnos","profesores","notas","cursos"};
     String tablaLexico[] = {"SELECCIONAR","PALABRA_RESERVADA",
                               "TABLA","PALABRA_RESERVADA",
                               "ATRIBUTOS","PALABRA RESERVADA",
                               ".","SIMBOLO",
                               ",","SIMBOLO"};
+    
     int cantTokens;
     String[] tokensEntrada;
+    String[] tokensCampos;
     String cadena;
+    Object campoError;
+    ArrayList camposEntrada;//ARRAY QUE GUARDARA LOS CAMPOS QUE DESEAMOS SELECCIONAR
     
     public CompiladorView() {
         initComponents();
-        
-     
-        
-
        /* //Color JPanel
         jLabel1.setBackground(Color.white);*/
     }
@@ -61,7 +81,6 @@ public class CompiladorView extends javax.swing.JFrame {
         jScrollPane1 = new javax.swing.JScrollPane();
         txtresultados = new javax.swing.JTextArea();
         jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
         jLabel2 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -129,16 +148,6 @@ public class CompiladorView extends javax.swing.JFrame {
             }
         });
 
-        jButton2.setBackground(new java.awt.Color(0, 153, 153));
-        jButton2.setFont(new java.awt.Font("Lucida Sans", 1, 11)); // NOI18N
-        jButton2.setForeground(new java.awt.Color(255, 255, 255));
-        jButton2.setText("VER TOKENS");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
-            }
-        });
-
         jLabel2.setForeground(new java.awt.Color(204, 204, 204));
         jLabel2.setText("Sharon");
 
@@ -149,48 +158,42 @@ public class CompiladorView extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 574, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(btnejecutar, javax.swing.GroupLayout.DEFAULT_SIZE, 105, Short.MAX_VALUE)
-                                .addComponent(jButton1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(btnejemplo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(btnlimpiar, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                            .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGap(18, 18, 18)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 451, Short.MAX_VALUE)
-                            .addComponent(txtexpresion)))
+                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 651, Short.MAX_VALUE)
+                    .addComponent(txtexpresion, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jLabel2)))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel2)
+                                .addGap(109, 109, 109))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(btnejecutar, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(btnejemplo, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
+                                .addComponent(btnlimpiar, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(45, 45, 45)
-                        .addComponent(btnejemplo, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(btnejecutar, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(31, 31, 31)
-                        .addComponent(txtexpresion, javax.swing.GroupLayout.PREFERRED_SIZE, 82, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(11, 11, 11)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(7, 7, 7)
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(btnlimpiar, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 24, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnejemplo, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnlimpiar, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(8, 8, 8)
+                .addComponent(txtexpresion, javax.swing.GroupLayout.PREFERRED_SIZE, 82, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnejecutar, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel2))
         );
 
@@ -198,7 +201,8 @@ public class CompiladorView extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnejecutarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnejecutarActionPerformed
-        
+        cadena = cadAux = Condicion = consulta = nomTabla = Campos = "";
+        campoError = (String)"";
 //Cadena a ser analizada
        //***********************String cadena = "SELECCIONAR TABLA alumnos.";****************************
         cadena = txtexpresion.getText();
@@ -242,7 +246,7 @@ public class CompiladorView extends javax.swing.JFrame {
     }//GEN-LAST:event_txtexpresionActionPerformed
 
     private void btnejemploActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnejemploActionPerformed
-       txtexpresion.setText("SELECCIONAR TABLA alumnos ATRIBUTOS dni,nombres,apellidos.");
+       txtexpresion.setText("SELECCIONAR TABLA Employees ATRIBUTOS FirstName DONDE EmployeeID>5.");
     }//GEN-LAST:event_btnejemploActionPerformed
 
     private void btnlimpiarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnlimpiarActionPerformed
@@ -254,11 +258,6 @@ public class CompiladorView extends javax.swing.JFrame {
         txtresultados.setText("");
         txtexpresion.setEditable(true);
     }//GEN-LAST:event_jButton1ActionPerformed
-
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        tv.setVisible(true);// HACER VISIBLE LA VENTANA DE TOKENVIEW
-        analizador_lexico(cadAux);// LLAMA AL METODO QUE HACE EL LEXEMA ENVIANDOLE LA CADENA CON LA EXPRESION COMPLETA
-    }//GEN-LAST:event_jButton2ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -284,7 +283,7 @@ public class CompiladorView extends javax.swing.JFrame {
          
         //guarda SEGUNDO token (Nombre de la tabla que se desea Seleccionar)
         tokenActual = tok1.nextToken();
-         
+         nomTabla = tokenActual;//ASIGNAMOS A ESTA VARIABLE QUE SERA USADA EN LA CONSULTA A LA BASE DE DATOS
         //Comprueba si es una tabla valida
         if( ! buscar_tabla(tokenActual) )
         {
@@ -292,38 +291,144 @@ public class CompiladorView extends javax.swing.JFrame {
             return;
         }
          
-        if(tok1.hasMoreTokens()){
+        if(tok1.hasMoreTokens()){//SI EXISTE MAS TOKENS SEGUIRA ANALIZANDO SINO SELECCIONARA TODOS LOS CAMPOS
             tokenActual = tok1.nextToken();     //guarda lo de values y todo lo demas
          
-        
-            //Comprueba si realmente es la palabra VALUES
-            if(! tokenActual.equals ("ATRIBUTOS") )
+            tipoConsulta = 2;
+            //Comprueba si realmente es la palabra ATRIBUTOS
+            if(! (tokenActual.equals ("ATRIBUTOS") ||tokenActual.equals("DONDE")) )//ANALIZA SI EL TOKEN ES ATRIBUTOS O DONDE
             {
-                txtresultados.setText ("Se esperaba la palabra clave ATRIBUTOS, no '"+tokenActual+"'");
+                txtresultados.setText ("Se esperaba la palabra clave ATRIBUTOS o DONDE, no '"+tokenActual+"'");
                 return;
             }
-            
-            String cadCampos = tok1.nextToken();
-            StringTokenizer tok2 = new StringTokenizer(cadCampos, ",");
+            switch (tokenActual){//DEPENDIENDO DE QUE TOKEN SEA HARA UNA COSA DIFERENTES
+                case "ATRIBUTOS":
+                    String cadCampos = tok1.nextToken();
+                    Campos = cadCampos;//ASIGNAMOS EL VALOR PARA SELECCIONAR CAMPOS NECESARIOS EN SU TOTALIDAD
 
-            while(tok2.hasMoreTokens()){
-                txtresultados.append(tok2.nextToken()+"\n");
-            }         
+                    StringTokenizer tok2 = new StringTokenizer(cadCampos, ",");//SEPARAMOS CAMPOS
+
+                    camposEntrada = new ArrayList();
+                    while(tok2.hasMoreTokens()){
+                        camposEntrada.add(tok2.nextToken());//GUARDA CADA CAMPO QUE DESAMOS SELEECIONAR
+                    }
+                    if(! validarCampos(camposEntrada)){//VALIDA SI LOS CAMPOS QUE SE DESEA SELECCIONAR EXISTE EN LA TABLA
+                        txtresultados.setText("Error el campo "+ campoError +" No pertenece a la tabla "+nomTabla);
+                        return;
+                    }
+                    if(tok1.hasMoreTokens()){//VERIFICA SI EXISTE MAS TOKENS QUE PERTENECEN A LA CONDICION
+                        tokenActual = tok1.nextToken();
+                        tipoConsulta = 3;
+                        if(! tokenActual.equals ("DONDE") )//EL SIGUIENTE TOKEN DEBE SER DONDE PARA LA CONDICION DE LA EXPRESION
+                        {
+                            txtresultados.setText ("Se esperaba la palabra clave DONDE, no '"+tokenActual+"'");
+                            return;
+                        }
+
+                        Condicion = tok1.nextToken();//SOLO TOMAMOS EL ULTIMO TOQUEN QUE SERA LA CONDICION
+                    }
+                    break;
+                case "DONDE": 
+                    tipoConsulta = 4;
+                    Condicion = tok1.nextToken();//SOLO TOMAMOS EL ULTIMO TOQUEN QUE SERA LA CONDICION
+                    break;
+            }
+            
+            
+            txtresultados.append("Consulta Exitosa!!!");
+            
+            prepararConsulta(); //PREPARA LA CONSULTA DE ACUERDO A LOS TOKENS QUE TENEMOS
+            hacerLaConsulta();// EJECUTA LA CONSULTA Y RELLENA LA TABLA CON LOS DATOS OBTENIDOS
+            return;
         }
         else{
-            txtresultados.setText("Se selecciono todos los campos de la tabla "+tokenActual);
+            txtresultados.setText("Consulta exitosa!!!");
+            prepararConsulta(); //PREPARA LA CONSULTA DE ACUERDO A LOS TOKENS QUE TENEMOS
+            hacerLaConsulta();// EJECUTA LA CONSULTA Y RELLENA LA TABLA CON LOS DATOS OBTENIDOS
             return;
         }
         
     }  // Fin de metodo 
      
+     public boolean validarCampos(ArrayList lista){
+         Boolean vf = true;
+         coneccion c = new coneccion();//CONECTA LA BASE DE DATOS
+        Connection acceso = c.getC(BD);
+        try {
+            PreparedStatement ps = acceso.prepareStatement("SELECT *FROM "+nomTabla);//REALIZAMOS LA CONSULTA
+            ResultSet rs = ps.executeQuery();
+            
+            ResultSetMetaData rsm = rs.getMetaData();//CONSULTA PARA OBTENER TODOS LOS DATOS COMO NOMBRE DE COLUMNAS, CANT DATOS ETC
+            cantColumas = rsm.getColumnCount();//CONSULTA PARA OBTENER CANTIDAD DE COLUMNAS
+            for (int i = 0; i < camposEntrada.size(); i++) {//LE DAMOS EL NOMBRE DE LAS COLUMNAS OBTENIDAS
+                for (int j = 1; j <= cantColumas; j++) {
+                    if(camposEntrada.get(i).equals(rsm.getColumnName(j))){
+                        vf = true;
+                        return vf;
+                    }else{
+                        vf = false;
+                        campoError = camposEntrada.get(i);
+                    }
+                }
+                if (vf == false){
+                    return vf;
+                }
+            }
+            c.desconectar();// DESCONECTA LA BASE DE DATOS
+            } catch (SQLException ex) {
+            
+            }
+         return vf;
+     }
+     
+     
+     public void prepararConsulta(){
+         switch(tipoConsulta){
+                 case 1: consulta = "SELECT *FROM " + nomTabla;break;
+                 case 2: consulta = "SELECT " + Campos + " FROM " + nomTabla;break;
+                 case 3: consulta = "SELECT " + Campos + " FROM " + nomTabla + " WHERE " + Condicion;break;
+                 case 4: consulta = "SELECT *FROM " + nomTabla + " WHERE " + Condicion;break;
+         }
+     }
+     public void hacerLaConsulta(){
+         coneccion c = new coneccion();//CONECTA LA BASE DE DATOS
+        Connection acceso = c.getC(BD);
+        DefaultTableModel modelo=new DefaultTableModel();// INSTANCIAMOS MODELO DE LA TABLA
+        tv.tblDatos.setModel(modelo);//LE DAMOS MODELO POR DEFECTO
+        try {
+            PreparedStatement ps = acceso.prepareStatement(consulta);//REALIZAMOS LA CONSULTA
+            ResultSet rs = ps.executeQuery();
+            
+            ResultSetMetaData rsm = rs.getMetaData();//CONSULTA PARA OBTENER TODOS LOS DATOS COMO NOMBRE DE COLUMNAS, CANT DATOS ETC
+            cantColumas = rsm.getColumnCount();//CONSULTA PARA OBTENER CANTIDAD DE COLUMNAS
+            Object[] filas; //ARREGLO PARA RELLENAR LA TABLA
+            for (int i = 1; i <= cantColumas; i++) {//LE DAMOS EL NOMBRE DE LAS COLUMNAS OBTENIDAS
+                modelo.addColumn(rsm.getColumnName(i));
+            }
+            
+            while(rs.next()){// RECORREMOS LOS DATOS OBTENIDOS
+                 filas = new Object[cantColumas];
+                for (int i = 1; i <= cantColumas; i++) {
+                    filas[i-1] = rs.getString(i);
+                }
+                modelo.addRow(filas);
+                tv.tblDatos.setModel(modelo);
+            }
+            
+            c.desconectar();// DESCONECTA LA BASE DE DATOS
+        } catch (SQLException ex) {
+            txtresultados.setText("Error expresion de la condicion no valida: *Campo no existe\n*Expresion no valida"); //VA A SER EL UNICO ERROR QUE LANSARA EL CONSULTA
+        }
+        tv.lblTitulo.setText("TABLA " + nomTabla);
+        tv.setVisible(true);
+     }
    //Devuelve true si la cadena que llega esta dentro de un arreglo de Strings,
    //devuelve  false en caso contrario; busca la tabla que llega dentro de las tablas validas
    public boolean buscar_tabla(String nomTabla)
    {
-      for(int i = 0;i< tablasValidas.length;i++)
+      for(int i = 0;i< tValidas.size();i++)
       {
-         if( tablasValidas[i].equals(nomTabla) )
+         if( tValidas.get(i).equals(nomTabla) )
                 return true;
       }
       return false;
@@ -335,7 +440,7 @@ public class CompiladorView extends javax.swing.JFrame {
         tv.tblDatos.setModel(modelo);
         modelo.addColumn("TIPO DE TOKEN");
         modelo.addColumn("TOKEN");//CREA LA TABLA 
-        
+      
        StringTokenizer tEntrada=new StringTokenizer(cadena);//SEPARA EN TOKENS TODA LA EXPRESION
         cantTokens =tEntrada.countTokens();
         tokensEntrada=new String[cantTokens];
@@ -409,7 +514,6 @@ public class CompiladorView extends javax.swing.JFrame {
     private javax.swing.JButton btnejemplo;
     private javax.swing.JButton btnlimpiar;
     private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JScrollPane jScrollPane1;
